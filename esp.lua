@@ -1,82 +1,79 @@
-local Outlines = true
-local OutlineColoring = Color3.fromRGB(0, 0, 0)
-local OutlineFill = true
-local FillOpacity = 0
-local FillColoring = Color3.fromRGB(79, 175, 50)
+local plr = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local RS = game:GetService("RunService")
+local camera = game.Workspace.CurrentCamera
+local boxes = {}
 
-local NameTags = true
-local TextFont = Enum.Font.RobotoMono
-local NameColor = Color3.fromRGB(0, 0, 0)
-local NamePositioning = false
-
-local Folder = Instance.new("Folder", game:GetService("CoreGui"))
-Folder.Name = ""
-
-AddOutline = function(Character)
-   local Highlight = Instance.new("Highlight", Folder)
-   
-   Highlight.OutlineColor = OutlineColoring
-   Highlight.Adornee = Character
-   
-   if OutlineFill == true then
-       Highlight.FillColor = FillColoring
-       Highlight.FillTransparency = FillOpacity
-   else
-       Highlight.FillTransparency = 1
-   end
+local function newLine()
+    local v = Drawing.new("Line")
+    v.Color = Color3.fromRGB(255,255,255)
+    v.From = Vector2.new(1,1)
+    v.To = Vector2.new(0,0)
+    v.Visible = true
+    v.Thickness = 3
+    return v
 end
 
-AddNameTag = function(Character)
-   local BGui = Instance.new("BillboardGui", Folder)
-   local Frame = Instance.new("Frame", BGui)
-   local TextLabel = Instance.new("TextLabel", Frame)
-   
-   BGui.Adornee = Character:WaitForChild("Head")
-   BGui.StudsOffset = Vector3.new(0, 3, 0)
-   BGui.AlwaysOnTop = true
-   
-   BGui.Size = UDim2.new(4, 0, 0.5, 0)
-   Frame.Size = UDim2.new(1, 0, 1, 0)
-   TextLabel.Size = UDim2.new(1, 0, 1, 0)
-   
-   Frame.BackgroundTransparency = 1
-   TextLabel.BackgroundTransparency = 1
-   
-   TextLabel.Text = Character.Name
-   TextLabel.Font = TextFont
-   TextLabel.TextColor3 = NameColor
-   TextLabel.TextScaled = NamePositioning
+local function newBox(player)
+    local box = {
+        ["Player"] = player, newLine(), newLine(), newLine(), newLine()
+    }
+    
+    table.insert(boxes,box)
+end
+ 
+local function shapeBox(box)
+    local player = box["Player"]
+    local TL = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(-3,3,0).p)
+    local TR = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(3,3,0).p)
+    local BL = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(-3,-3,0).p)
+    local BR = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(3,-3,0).p)
+    box[1].From = Vector2.new(TL.X, TL.Y)
+    box[1].To = Vector2.new(BL.X, BL.Y)
+    
+    box[2].To = Vector2.new(TR.X, TR.Y)
+    box[2].From = Vector2.new(TL.X, TL.Y)
+    
+    box[3].To = Vector2.new(BR.X, BR.Y)
+    box[3].From = Vector2.new(TR.X, TR.Y)
+    
+    box[4].To = Vector2.new(BR.X, BR.Y)
+    box[4].From = Vector2.new(BL.X, BL.Y)
+    
+end
+local function visBox(box, vis)
+    for i,v in ipairs(box) do v.Visible = vis end
 end
 
-for i, v in ipairs(game:GetService("Players"):GetPlayers()) do
-   if v ~= game:GetService("Players").LocalPlayer then
-       v.CharacterAdded:Connect(function(Character)
-           if Outlines == true then
-               AddOutline(Character)
-           end
-           if NameTags == true then
-               AddNameTag(Character)
-           end
-       end)
-       
-       if v.Character then
-           if Outlines == true then
-               AddOutline(v.Character)
-           end
-           if NameTags == true then
-               AddNameTag(v.Character)
-           end
-       end
-   end
+local function hasBox(player)
+    for i, v in ipairs(boxes) do
+        if v["Player"] == player then return true end
+    end
 end
 
-game:GetService("Players").PlayerAdded:Connect(function(Player)
-   Player.CharacterAdded:Connect(function(Character)
-       if Outlines == true then
-           AddOutline(Character)
-       end
-       if NameTags == true then
-           AddNameTag(Character)
-       end
-   end)
+RS.RenderStepped:connect(function()
+
+    for i, player in ipairs(Players:GetPlayers()) do
+        if not hasBox(player) and player ~= plr then
+            newBox(player)
+        end
+    end
+    
+    for i, v in ipairs(boxes) do
+        local player = v["Player"]
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            shapeBox(v)
+            local _, withinScreenBounds = camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)
+            if withinScreenBounds then
+                visBox(v,true)
+                
+            else
+                warn(withinScreenBounds)
+                visBox(v,false)    
+            end
+        else
+            
+            visBox(v, false)
+        end
+    end
 end)
